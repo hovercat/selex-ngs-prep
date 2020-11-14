@@ -61,7 +61,8 @@ By default new directories are created containing resulting files and a cache.
     ├── input_data/         # Directory used by default for input of raw FASTQ files
     ├── examples/           # Example config files and data in FASTQ format
     ├── output/             
-    │   ├── preprocessed/   # The main result: preprocessed FASTA files
+    │   ├── preprocessed_fasta/   # The main result: preprocessed FASTA files
+    │   ├── preprocessed_fastq/   # The main result: preprocessed FASTQ files
     │   ├── discarded/      # FASTQ files with discarded sequences
     │   ├── selex_quality/  # Plots and charts concerning success of the SELEX experiment
     │   └── ngs_quality/    # Plots and charts concerning sequencing quality
