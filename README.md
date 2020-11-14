@@ -57,16 +57,16 @@ The workflow is embedded in a directory structure.
 By default new directories are created containing resulting files and a cache.
 
     .
-    ├── bin                 # R and Python scripts for analysis
-    ├── input_data          # Directory used by default for input of raw FASTQ files
-    ├── examples            # Example config files and data in FASTQ format
-    ├── output              
-    │   ├── preprocessed    # The main result: preprocessed FASTA files
-    │   ├── discarded       # FASTQ files with discarded sequences
-    │   ├── selex_quality   # Plots and charts concerning success of the SELEX experiment
-    │   └── ngs_quality     # Plots and charts concerning sequencing quality
-    ├── test                # Automated tests
-    ├── work                # cache dir containing intermediate files and temporary conda environments
+    ├── bin/                # R and Python scripts for analysis
+    ├── input_data/         # Directory used by default for input of raw FASTQ files
+    ├── examples/           # Example config files and data in FASTQ format
+    ├── output/             
+    │   ├── preprocessed/   # The main result: preprocessed FASTA files
+    │   ├── discarded/      # FASTQ files with discarded sequences
+    │   ├── selex_quality/  # Plots and charts concerning success of the SELEX experiment
+    │   └── ngs_quality/    # Plots and charts concerning sequencing quality
+    ├── test/               # Automated tests
+    ├── work/               # cache dir containing intermediate files and temporary conda environments
     |   └── ...
     ├── selex-ngs-prep.nf   # The data preparation workflow
     ├── nextflow.config     # Fallback config file (must not be changed)
