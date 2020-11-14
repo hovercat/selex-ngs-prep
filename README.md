@@ -97,8 +97,9 @@ Create a new text file (or modify one from *config/*) and save it as *YOUR_EXPER
 Make sure to choose a proper name for you config file.
 ```groovy
 params {
-    // The path to the raw ngs reads with a wildcard pattern. (more info below)
-    in_fastq = "raw_fastq_files/*R{1,2}_001.fastq"
+    fastq_pattern = "*R{1,2}_001.fastq"     // wildcard pattern to find FASTQ files
+    round_order = ["R0", "R1", "R2", "R3", "R4"]
+    
     // Length of random region
     random_region = 40
     
@@ -107,35 +108,29 @@ params {
     primer3 = "TTGACTAGTACATGACCACTTGA"
 }
 ```
-The config parameter 'in_fastq' has to be a wildcard pattern.
-In the case of 'raw_fastq_files/`*R{1,2}_001.fastq'` the workflow will look for forward and reverse reads in the directory 'raw_fastq_files'.
-All forward reads are of the pattern `'*R1_001.fastq'`, while all reverse reads are of the pattern `'*R2_001.fastq'`.
+The config parameter 'fastq_pattern' has to be a wildcard pattern.
+In the case of "`*R{1,2}_001.fastq`" the workflow will look for forward of the pattern `'*R1_001.fastq'` and reverse reads of the pattern `'*R2_001.fastq'`.
 
 ### Default Config
 The default config-file with all options is shown here:
 ```groovy
 // ngs-prep.config
 params {
-    in_fastq = null
+    input_dir = "./input_data"          // optional
+    output_dir = "./output"             // optional
+    fastq_pattern = null
+    selex_rounds = ["R0", "R1", "R2", "R3", "R4"]    // optional, if null then alphabetical order is used
+    
     random_region = null
-    random_region_max_deviation = 3
+    random_region_max_deviation = 3     // optional
     
     primer5 = null
-    primer3 = null
+    primer3 = null      
     
-    round_name_delimiter = "_"
-    
-    adapter_trim {
-        max_error_rate = 0.2
-    }
-    
-    filter {
-        min_phred_quality = 30
-    }
-    
-    merge {
-        // bla
-    }
+    trim.max_error_rate = 0.2           // maximum error rate in the primers to be recognized
+    filter.min_phred_quality = 30       // default average sequence read quality to include sequence
+    merge.base_correction = true        // enables base correctio if paired-end reads mismatch and there are major quality differences
+    merge.max_mismatches = 1            // allowed number of mismatches for merging
 }
 
 
@@ -143,3 +138,4 @@ params {
 
 
 ## License
+    
