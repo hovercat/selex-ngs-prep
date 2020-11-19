@@ -1,0 +1,12 @@
+
+### `r basename(params$fwd_reads[i])`
+
+```{r, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE, echo=FALSE}
+  setwd(params$wd)
+  fwd <- dada2::plotQualityProfile(fwd_fastq)
+  print(fwd)
+  if (!is.null(rev_fastq)) {
+    rev <- dada2::plotQualityProfile(rev_fastq)
+    print(rev)
+  }
+```
