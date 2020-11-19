@@ -39,36 +39,66 @@ def trim_fn(String s) {
     }
 }
 
+def filter_selex_rounds(String round_name) {
+    if (params.round_order == null || params.round_order == "" || params.round_order.size() == 0) return true;
+    // // building regex to check files if they match the rounds specified in YOUR_SELEX
+    // round_regex = "(" + params.round_order.join('|') + ")" + params.trim_delimiter + ".*"; // TODO replace trim_delimiter with autodetect
+    // return s.matches(round_regex);
+    
+    return params.round_order.contains(round_name);
+}
 
+def get_round_id(String round_name) {
+    if (params.round_order == null || params.round_order == "" || params.round_order.size() == 0) return 0;
+    else return params.round_order.indexOf(round_name);
+}
+
+
+"""
+========================================================
+Read FASTQ-files from specified input directory and order by round_order (if present)
+========================================================    
+"""
 fastq_files = Channel.fromFilePairs(params.input_dir + "/" + params.fastq_pattern, checkIfExists:true, type: "file")
 fastq_files
+    .map { it -> [get_round_id(trim_fn(it[0])), trim_fn(it[0]), it].flatten() }
+    .filter { filter_selex_rounds(it[1]) }
     .into { fastq_files_ngs_quality; fastq_files_preprocess }
+    
+
+(fastq_files_fwd, fastq_files_rev) = fastq_files_ngs_quality.separate(2) { it -> [[it[0], it[3]], [it[0], it[4]]] }
+fastq_files_fwd_sorted = fastq_files_fwd
+    .toSortedList( { a, b -> a[0] <=> b[0] } )
+    .collect { it -> return it.collect { it[1] } } // double collect here, single did not work
+    
+fastq_files_rev_sorted = fastq_files_rev
+    .toSortedList( { a, b -> a[0] <=> b[0] } )
+    .collect { it -> return it.collect { it[1] } } // double collect here, single did not work
+    
 
 """
 ========================================================
-NGS Quality Analysis
+NGS quality analysis
 ========================================================
 """
-process ngs_quality {
-    conda 'bioconda::fastp'
-    publishDir 'output/ngs_quality',
+process ngs_quality_raw {
+    publishDir 'output/analysis.ngs_quality',
         pattern: "*.html",
         mode: "copy"
     
     input:
-        tuple val(identifier), file(files) from fastq_files_ngs_quality
+        file(fastq_fwd) from fastq_files_fwd_sorted
+        file(fastq_rev) from fastq_files_rev_sorted
     output:
-        file("*.json") into multiqc_afterqc
-        file("*.html") into ngs_quality_html
+        file("*.html") into ngs_quality_raw_html
     script:
-    fastq_fwd = files[0]
-    fastq_rev = files[1]
     """
-        #after.py -1 $fastq_fwd -2 $fastq_rev --qc_only
-        #fastp -1 $fastq_fwd -2 $fastq_rev --qc_only
-        #mv QC/* .
-        
-        ngs_quality.R -1 $fastq_fwd -2 $fastq_rev
+        ngs_quality_report.R --author '${params.author}' \
+            --ngs_run_date '${params.ngs_run_date}' \
+            --title '${params.experiment}: Raw Files' \
+            -o ./ngs_quality_raw.html \
+            --fwd_reads ${fastq_fwd} \
+            --rev_reads ${fastq_rev} 
     """
 }
 
@@ -80,164 +110,216 @@ Data preparation
 """
 process trim {
     conda 'bioconda::cutadapt'
-    publishDir 'output/',
-        pattern: 'discarded_fastq/*.fastq',
-        mode: "copy"
     
     input:
-        tuple val(identifier), file(files) from fastq_files_preprocess
+        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from fastq_files_preprocess
     output:
-        tuple val(identifier), file("${fastq_fwd.simpleName}.fastq"), file("${fastq_rev.simpleName}.fastq") into trim_keep
-        file("discarded_fastq/*") into trim_discard
-        file("${fastq_fwd.simpleName}.cutadapt.log") into multiqc_cutadapt
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.simpleName}.trim.fastq"), file("${fastq_rev.simpleName}.trim.fastq") into trim_keep        
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.fastq"), file("${fastq_fwd.baseName}.trim.fastq") into preprocessing_analysis_trim
         
     script:
-    fastq_fwd = files[0]
-    fastq_rev = files[1]
     """
-    # hacked way to get cutadapt to output the correct log name
-    mv ${fastq_fwd} fwd.${fastq_fwd}
-    mv ${fastq_rev} ${fastq_fwd}
+        # hacked way to get cutadapt to output the correct log name
+        mv ${fastq_fwd} fwd.${fastq_fwd}
+        mv ${fastq_rev} ${fastq_fwd}
+        
+        
+        mkdir discarded_fastq
+        cutadapt \
+                --action=trim \
+                -e ${params.trim.max_error_rate} \
+                -g ^${params.primer5}...${params.primer3} \
+                -G ^${reverse_complement(params.primer3)}...${reverse_complement(params.primer5)} \
+                --report=full \
+                \
+                --untrimmed-output discarded_fastq/${fastq_fwd.simpleName}.no_primers.trim.fastq \
+                --untrimmed-paired-output discarded_fastq/${fastq_rev.simpleName}.no_primers.trim.fastq \
+                \
+                --output ${fastq_fwd.simpleName}.trim.fastq \
+                --paired-output ${fastq_rev.simpleName}.trim.fastq \
+                fwd.${fastq_fwd} ${fastq_fwd} > ${fastq_fwd.simpleName}.cutadapt.log
+                
+    #            mv ${fastq_fwd.simpleName}.trim.fastq ${fastq_fwd.simpleName}.fastq
+    #            mv ${fastq_rev.simpleName}.trim.fastq ${fastq_rev.simpleName}.fastq
     
-    
-    mkdir discarded_fastq
-    cutadapt \
-            --action=trim \
-            -e ${params.trim.max_error_rate} \
-            -g ^${params.primer5}...${params.primer3} \
-            -G ^${reverse_complement(params.primer3)}...${reverse_complement(params.primer5)} \
-            --report=full \
-            \
-            --minimum-length ${params.random_region - params.random_region_max_deviation} \
-            --maximum-length ${params.random_region + params.random_region_max_deviation} \
-            \
-            --untrimmed-output discarded_fastq/${fastq_fwd.simpleName}.missing_primers.trim.fastq \
-            --untrimmed-paired-output discarded_fastq/${fastq_rev.simpleName}.missing_primers.trim.fastq \
-            --too-short-output discarded_fastq/${fastq_fwd.simpleName}.too_short.trim.fastq \
-            --too-short-paired-output discarded_fastq/${fastq_rev.simpleName}.too_short.trim.fastq \
-            --too-long-output discarded_fastq/${fastq_fwd.simpleName}.too_long.trim.fastq \
-            --too-long-paired-output discarded_fastq/${fastq_rev.simpleName}.too_long.trim.fastq \
-            \
-            --output ${fastq_fwd.simpleName}.trim.fastq \
-            --paired-output ${fastq_rev.simpleName}.trim.fastq \
-            fwd.${fastq_fwd} ${fastq_fwd} > ${fastq_fwd.simpleName}.cutadapt.log
-            
-            mv ${fastq_fwd.simpleName}.trim.fastq ${fastq_fwd.simpleName}.fastq
-            mv ${fastq_rev.simpleName}.trim.fastq ${fastq_rev.simpleName}.fastq
+        mv ${fastq_fwd} ${fastq_rev}
+        mv fwd.${fastq_fwd} ${fastq_fwd}
     """
 }
 
 
-process filter_merge {
+process filter {
     conda 'bioconda::fastp'
-    publishDir 'output/',
-        pattern: 'discarded_fastq/*.fastq',
-        mode: "copy"
     
     input:
-        tuple val(identifier), file(fastq_fwd), file(fastq_rev) from trim_keep
+        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from trim_keep
     output:
-        tuple val(identifier), file("${fastq_fwd.baseName}.filter.merge.fastq") into fastp_keep
-        file("discarded_fastq/*") into fastp_discarded
-        file("${fastq_fwd.simpleName}.fastp.json") into multiqc_fastp_filter
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.filter.fastq"), file("${fastq_rev.baseName}.filter.fastq") into filter_keep
+        tuple val(round_id), file("${fastq_fwd.baseName}.filter.fastq") into preprocessing_analysis_filter
     script:
     """
-        mkdir discarded_fastq
-        touch discarded_fastq/${fastq_fwd.baseName}.failed_filter_merge.fastq
-        touch discarded_fastq/${fastq_rev.baseName}.failed_filter_merge.fastq
-        
         fastp -i ${fastq_fwd} -I ${fastq_rev} \
-            --merge \
-            --merged_out=${fastq_fwd.baseName}.filter.merge.fastq \
+            -o ${fastq_fwd.baseName}.filter.fastq -O ${fastq_rev.baseName}.filter.fastq \
             --disable_adapter_trimming \
             --average_qual $params.filter.min_phred_quality \
-            --json=${fastq_fwd.simpleName}.fastp.json
-            
-            #-o ${fastq_fwd.baseName}.filter.merge.fastq \
-            #-O ${fastq_rev.baseName}.filter.merge.fastq \
-#             --unpaired1=discarded_fastq/${fastq_fwd.baseName}.low_quality.filter.fastq \
- #           --unpaired2=discarded_fastq/${fastq_rev.baseName}.low_quality.filter.fastq \
+            --json=${fastq_fwd.baseName}.filter.fastp.json
     """
 }
 
-
-/*process merge {
+process merge {
     conda 'bioconda::fastp'
-    publishDir 'output/',
-        pattern: 'discarded_fastq/*.fastq',
+    publishDir 'output/fastq.prepped.all_lengths',
+        pattern: '*merge.fastq',
+        saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
         mode: "copy"
-        
+    publishDir 'output/fasta.prepped.all_lengths',
+        pattern: '*merge.fasta',
+        saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
+        mode: "copy"
+    
     input:
-        tuple val(identifier), file(fastq_fwd), file(fastq_rev) from filter_keep
+        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from filter_keep
     output:
-        file("${fastq_fwd.baseName}.merge.fastq") into merge_keep
-        file("discarded_fastq/*") into merge_discard
-        file("${fastq_fwd.simpleName}.merge.fastp.json") into multiqc_fastp_merge
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.merge.fastq") into fastp_keep
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.merge.fasta") into fasta_keep
+        tuple val(round_id), file("${fastq_fwd.baseName}.merge.fastq") into preprocessing_analysis_merge
     script:
     """
-        mkdir discarded_fastq
+#        mkdir discarded_fastq
+#        touch discarded_fastq/${fastq_fwd.baseName}.failed_filter_merge.fastq
+#        touch discarded_fastq/${fastq_rev.baseName}.failed_filter_merge.fastq
+        
         fastp -i ${fastq_fwd} -I ${fastq_rev} \
-            -o discarded_fastq/${fastq_fwd.baseName}.failed.merge.fastq \
-            -O discarded_fastq/${fastq_rev.baseName}.failed.merge.fastq \
             --merge \
             --merged_out=${fastq_fwd.baseName}.merge.fastq \
             --disable_adapter_trimming \
-            --json=${fastq_fwd.simpleName}.merge.fastp.json
+            --json=${fastq_fwd.simpleName}.fastp.json
+        
+        # remove quality information to convert fastq to fasta
+        sed -n 'p;n;p;n;n' ${fastq_fwd.baseName}.merge.fastq | sed 's/@M/>M/g' > ${fastq_fwd.baseName}.merge.fasta
     """
-}*/
+}
 
 
-process publish_preprocessed_files {
-    publishDir 'output/preprocessed_fastq',
-        pattern: '*.fastq',
+process restrict_random_region_length {
+    publishDir 'output/fastq.prepped',
+        pattern: '*restricted_length.fastq',
         saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
         mode: "copy"
-    
-    publishDir 'output/preprocessed_fasta',
-        pattern: '*.fasta',
+    publishDir 'output/fasta.prepped',
+        pattern: '*restricted_length.fasta',
         saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
         mode: "copy"
         
     input:
-        tuple val(identifier), file(fastq_preprocessed) from fastp_keep
+        tuple val(round_id), val(round_name), val(identifier), file(fastq_preprocessed) from fastp_keep
     output:
-        file(fastq_preprocessed) into fasta_preprocessed
-        file("${fastq_preprocessed.baseName}.fasta") into fastq_preprocessed
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into fastq_preprocessed
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fasta") into fasta_preprocessed
+        
+        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into fastq_preprocessed_ngs_analysis
+        
+        tuple val(round_id), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into preprocessing_analysis_restricted_length
     script:
     """
+        restrict_random_region_length.py -i ${fastq_preprocessed} -o ${fastq_preprocessed.baseName}.restricted_length.fastq \
+            --min ${params.random_region_min} --mino ${fastq_preprocessed.baseName}.too_short.fastq \
+            --max ${params.random_region_max} --maxo ${fastq_preprocessed.baseName}.too_long.fastq
+        
         # remove quality information to convert fastq to fasta
-        sed -n 'p;n;p;n;n' $fastq_preprocessed | sed 's/@M/>M/g' > ${fastq_preprocessed.baseName}.fasta
+        sed -n 'p;n;p;n;n' ${fastq_preprocessed.baseName}.restricted_length.fastq | sed 's/@M/>M/g' > ${fastq_preprocessed.baseName}.restricted_length.fasta
     """
 }
 
-
-
 """
 ========================================================
-MultiQC of Preprocessing
+NGS Quality Analysis of Preprocessed Files
 ========================================================
 """
-//multiqc_afterqc
- //   .join(multiqc_cutadapt)
-  //  .join(multiqc_fastp_filter)
-   // .join(multiqc_fastp_merge)
-    //.set { multiqc_input }
 
+fastq_preprocessed_ngs_analysis_sorted = fastq_preprocessed_ngs_analysis
+    .toSortedList( { a, b -> a[0] <=> b[0] } )
+    .collect { it -> return it.collect { it[3] } } // double collect here, single did not work
 
-process multiqc {
-    conda 'conda_envs/multiqc.yaml'
+process ngs_quality_analysis_preprocessed {
+    publishDir 'output/analysis.ngs_quality',
+        pattern: "*.html",
+        mode: "copy"
     
     input:
-        //file(afterqc) from multiqc_afterqc.collect()
-        file(cutadapt) from multiqc_cutadapt.collect()
-        file(fastp_filter) from multiqc_fastp_filter.collect()
-        //file(fastp_merge) from multiqc_fastp_merge.collect()
-        //tuple val(identifier), file(afterqc), file("cutadapt.log"), file("fastp_filter.json"), file("fastp_merge.json") from multiqc_input
+        file(fastq_file) from fastq_preprocessed_ngs_analysis_sorted
     output:
-        file("*") into multiqc_output
+        file("*.html") into ngs_quality_html_preprocessed
     script:
     """
-        multiqc .
+        ngs_quality_report.R --author '${params.author}' \
+            --ngs_run_date '${params.ngs_run_date}' \
+            --title '${params.experiment}: Preprocessed Files' \
+            -o ./ngs_quality_preprocessed.html \
+            --fwd_reads ${fastq_file}
+    """
+}
+
+"""
+========================================================
+Preprocessing Analysis
+========================================================
+"""
+preprocessing_analysis_trim
+    .join(preprocessing_analysis_filter)
+    .join(preprocessing_analysis_merge)
+    .join(preprocessing_analysis_restricted_length)
+    .set{ preprocessing_analysis }
+
+process preprocessings_analysis {
+    input:
+        tuple val(round_id), val(round_name), val(identifier), file("raw.fastq"), file("trim.fastq"), file("filter.fastq"), file("merge.fastq"), file("restricted_length.fastq") from preprocessing_analysis
+    output:
+        tuple val(round_id), file("${round_id}.csv") into preprocessing_analysis_csv_lines
+    script:
+    """        
+        raw_reads=\$((\$(cat raw.fastq | wc -l)/4))
+        trim_reads=\$(( \$(cat trim.fastq | wc -l)/4))
+        filtered_reads=\$((\$(cat filter.fastq | wc -l)/4))
+        merged_reads=\$((\$(cat merge.fastq | wc -l)/4))
+        restricted_length_reads=\$((\$(cat restricted_length.fastq | wc -l)/4))
+
+
+        touch ${round_id}.csv
+        echo -n $round_id >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n $round_name >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n \$raw_reads >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n \$trim_reads >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n \$filtered_reads >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n \$merged_reads >> ${round_id}.csv
+        echo -n '\t' >> ${round_id}.csv
+        echo -n \$restricted_length_reads >> ${round_id}.csv
+        echo >> ${round_id}.csv # new line
+    """
+}
+
+preprocessing_analysis_csv_sorted = preprocessing_analysis_csv_lines.toSortedList( { a -> a[0] } ).transpose().last().collect()
+process preprocessings_analysis_combine_csv {
+    publishDir 'output/analysis.preprocessing/',
+        pattern: "preprocessing*",
+        mode: "copy"
+    
+    input:
+        file(f) from preprocessing_analysis_csv_sorted
+    output:
+        file("preprocessing*.csv") into prep_analysis_csv
+        file("preprocessing*.png") into prep_analysis_plots
+    script:
+    """
+        touch preprocessing_analysis.csv
+        echo 'round_id\tround_name\traw\ttrim\tfilter\tmerge\trestrict_size' >> preprocessing_analysis.csv
+        cat $f >> preprocessing_analysis.csv
+        preprocessing_analysis.R -i preprocessing_analysis.csv -o preprocessing.png -p preprocessing.perc.png
     """
 }
 
