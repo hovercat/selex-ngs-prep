@@ -203,31 +203,31 @@ process merge {
 
 process restrict_random_region_length {
     publishDir 'output/fastq.prepped',
-        pattern: '*restricted_length.fastq',
-        saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
+        pattern: '*fastq',
+        //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
         mode: "copy"
     publishDir 'output/fasta.prepped',
-        pattern: '*restricted_length.fasta',
-        saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
+        pattern: '*fasta',
+        //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
         mode: "copy"
         
     input:
         tuple val(round_id), val(round_name), val(identifier), file(fastq_preprocessed) from fastp_keep
     output:
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into fastq_preprocessed
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fasta") into fasta_preprocessed
+        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fastq") into fastq_preprocessed
+        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fasta") into fasta_preprocessed
+        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fasta") into fasta_preprocessed_nt_distribution
+        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fastq") into fastq_preprocessed_ngs_analysis
         
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into fastq_preprocessed_ngs_analysis
-        
-        tuple val(round_id), file("${fastq_preprocessed.baseName}.restricted_length.fastq") into preprocessing_analysis_restricted_length
+        tuple val(round_id), file("${round_name}.fastq") into preprocessing_analysis_restricted_length
     script:
     """
-        restrict_random_region_length.py -i ${fastq_preprocessed} -o ${fastq_preprocessed.baseName}.restricted_length.fastq \
-            --min ${params.random_region_min} --mino ${fastq_preprocessed.baseName}.too_short.fastq \
-            --max ${params.random_region_max} --maxo ${fastq_preprocessed.baseName}.too_long.fastq
+        restrict_random_region_length.py -i ${fastq_preprocessed} -o ${round_name}.fastq \
+            --min ${params.random_region_min} --mino ${round_name}.too_short.fastq \
+            --max ${params.random_region_max} --maxo ${round_name}.too_long.fastq
         
         # remove quality information to convert fastq to fasta
-        sed -n 'p;n;p;n;n' ${fastq_preprocessed.baseName}.restricted_length.fastq | sed 's/@M/>M/g' > ${fastq_preprocessed.baseName}.restricted_length.fasta
+        sed -n 'p;n;p;n;n' ${round_name}.fastq | sed 's/@M/>M/g' > ${round_name}.fasta
     """
 }
 
@@ -325,6 +325,78 @@ process preprocessings_analysis_combine_csv {
 
 """
 ========================================================
-Analysing SELEX Success
+Analysing SELEX Enrichment
 ========================================================
 """
+
+fasta_prepped_sorted = fasta_preprocessed.toSortedList( { a -> a[0] } ).transpose().last().collect()
+process dereplicate_rpm {
+    publishDir 'output/',
+        pattern: '*{csv,png}',
+        mode: "copy"
+                
+    input:
+        file(fasta) from fasta_prepped_sorted
+    output:
+        tuple file("selex.dereplicated.fasta"), file("selex.aptamers.csv"), file("selex.aptamers.rpm.csv") into selex_dereplicated
+        
+    """
+        selex_dereplicate_fasta.py -o selex.dereplicated.fasta -c selex.aptamers.csv ${fasta}
+        selex_rpm.r -i selex.aptamers.csv -o selex.aptamers.rpm.csv
+    """
+}
+
+process assess_selex_enrichment {
+    publishDir 'output/analysis.selex_success',
+        pattern: '*',
+        mode: "copy"
+                
+    input:
+    tuple file("selex.dereplicated.fasta"), file("selex.aptamers.csv"), file("selex.aptamers.rpm.csv") from selex_dereplicated
+    output:
+        file("selex_success*.csv") into selex_enrichment
+        file("selex_success*.png") into selex_enrichment_png
+    """        
+        # Analyse Log Duplicates
+        selex_analyse_log_duplicates.r -i selex.aptamers.csv --log-base 2 --out-unique-csv selex_success.unique.log2.csv --out-csv selex_success.log2.csv
+        selex_analyse_log_duplicates.r -i selex.aptamers.csv --log-base 10 --out-unique-csv selex_success.unique.log10.csv --out-csv selex_success.log10.csv
+        selex_analyse_log_duplicates.r -i selex.aptamers.rpm.csv --log-base 2 --out-unique-csv selex_success.unique.log2.rpm.csv --out-csv selex_success.log2.rpm.csv
+        selex_analyse_log_duplicates.r -i selex.aptamers.rpm.csv --log-base 10 --out-unique-csv selex_success.unique.log10.rpm.csv --out-csv selex_success.log10.rpm.csv
+    """
+}
+
+
+"""
+========================================================
+Analysing Nucleotide Distribution
+========================================================
+"""
+process analyse_round_nt_distribution {
+    publishDir 'output/analysis.nt_distribution',
+        pattern: '*.csv',
+        mode: "copy"
+    input:
+        tuple val(round_id), val(round_name), val(identifier), file(fasta) from fasta_preprocessed_nt_distribution
+    output:
+        tuple val(round_id), file("${round_name}.nt_distribution.csv") into nt_distribution_round_csv
+    script:
+    """
+        selex_nt_composition.py -i $fasta -o ${round_name}.nt_distribution.csv --DNA -n ${params.random_region}
+    """
+}
+
+fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
+process analyse_selex_nt_distribution {
+    publishDir 'output/analysis.nt_distribution',
+        pattern: '*{png,html}',
+        mode: "copy"
+    input:
+        file(round_csv) from fasta_preprocessed_nt_distribution_sorted
+    output:
+        file("nucleotide_composition.html") into nt_distribution_round_html
+        file("*.png") into nt_distribution_round_png
+    script:
+    """
+        selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html --author '${params.author}'
+    """
+}

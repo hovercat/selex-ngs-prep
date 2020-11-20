@@ -1,0 +1,35 @@
+---
+title: "Nucleotide Composition"
+output: html_document
+params:
+  author: "Ulrich Aschl"
+  gg_mean: !r -1
+  gg_rounds: !r list()
+  round_names: !r c()
+  round_index: !r c()
+---
+**Author**: `r params$author`
+
+## Nt distribution over all SELEX rounds
+```{r, fig.show="hold", out.width="70%", message=FALSE, warning=FALSE, echo=FALSE}
+  plot(gg_mean)
+```
+
+
+
+
+## Nt distribution of every single SELEX Plots
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+  out <- NULL
+  for (i in 1:length(params$round_index)) {
+    round_index <- params$round_index[i]
+    round_name <- params$round_names[i]
+    gg = params$gg_rounds[[i]]
+    out <- c(out, knitr::knit_child(here::here("bin", "selex_nt_composition_plot_round.Rmd"), quiet=TRUE))
+  }
+```
+
+```{r, echo=FALSE, warning=FALSE, results="asis"}
+  cat(paste(out, collapse = '\n'))
+```
