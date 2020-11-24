@@ -51,6 +51,15 @@ The workflow generates a vast number of different files.
 The most important output files are the preprocessed (trimmed, filtered, merged) FASTA and FASTQ files, containing the aptamer random regions.
 These files should be used for further analysis.
 
+### Preprocessing Performance
+
+Plots and CSV-files are created to show the performance of the *selex-ngs-prep* preprocessing workflow.
+It shows the how many reads were discarded in every step of the workflow for every SELEX round.
+
+Here's an example plot:
+
+<img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.preprocessing/preprocessing.perc.png?raw=true" alt="Preprocessing Performance Plot" width="60%" height="60%"/>
+
 ### Aptamer CSV Lists
 
 Two files called *selex.aptamers.csv* and *selex.aptamers.rpm.csv* are created.
@@ -62,11 +71,41 @@ Values in the rpm-file (rpm is reads per million) are based on the percentage a 
 
 Plots and CSV files are created, in which random regions are binned logarithmically by base 2 and base 10.
 
-An example plot: ![SELEX Enrichment](readme_images/selex_success.log2.csv.png)
+An example plot: 
+
+<img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.selex_success/selex_success.log2.csv.png?raw=true" alt="SELEX Enrichment Plot on log2 base" width="60%" height="60%"/>
 
 ### Nucleotide Distribution
 
+Barplots are created for the whole SELEX experiment, as well as every SELEX round on its own.
+CSV files which are used for the barplots are outputted as well.
+
+The plots are also summarized in an HTML-file.
+As the images are stored directly in the HTML, showing it on GitHub is not possible due to file size limitations.
+Please have a look into the example_output directory if you are interested.
+
+
+<p float="left">
+    <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.nt_distribution/nt_distribution.png?raw=true" alt="Nucleotide Distribution Plot for SELEX Experiment" width="49%" height="49%"/>
+    <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.nt_distribution/R9.nt_distribution.png?raw=true" alt="Nucleotide Distribution Plot for Round R9" width="49%" height="49%"/>
+</p>
+The left plot shows the nt distribution over all rounds for a SELEX experiment.
+The right plots shows the nt distribution along the random region of a specific SELEX round.
+
 ### NGS Quality
+
+Quality plots of sequencing files are created using the plotQualityProfile function from the DADA2 Amplicon Sequencing Pipeline. <!-- TODO: Cite -->
+Plots are created for raw files, as well as the fully preprocessed files.
+
+<p float="left">
+  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/raw_plots/ngs_quality_forward.png?raw=true" width="49%" />
+  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/prepped_plots/ngs_quality_forward.png?raw=true" width="49%" />
+</p>
+
+On the left side is the quality profile plot before preprocessing. On the right side after preprocessing.
+
+These plots are also created for every single SELEX round (before and after preprocessing) and are also written as HTML files.
+
 
 
 ## Usage
@@ -76,7 +115,6 @@ By default new directories are created containing resulting files and a cache.
 
     .
     ├── bin/                # R and Python scripts for analysis
-    ├── input_data/         # Directory used by default for input of raw FASTQ files
     ├── output_YOUREXPERIMENT/             
     │   ├── analysis.ngs_quality/       # HTML-Files and plots on sequencing quality
     │   ├── analysis.nt_distribution/   # HTML-Files and plots on nucleotide distribution on aptamers
@@ -85,22 +123,31 @@ By default new directories are created containing resulting files and a cache.
     │   ├── fastx*                      # Directories with preprocessed FASTQ/FASTA files
     │   ├── selex.aptamers.csv          # CSV chart containing all aptamers in the experiment
     │   └── selex.aptamers.rpm.csv      # CSV chart containing all aptamers in the experiment, counted in reads per million
-    ├── work/               # cache dir containing intermediate files and temporary conda environments
-    |   └── ...
+    ├── work/               # cache directory containing intermediate files and temporary conda environments (may be deleted after)
+    |   └── ...             
     ├── selex-ngs-prep.nf   # The data preparation workflow
-    ├── nextflow.config     # Fallback config file (must not be changed)
+    ├── nextflow.config     # default config file (should not be changed)
     ├── create_config.py    # Config creation wizard
     ├── LICENSE
     └── README.md
     
 ### Execution
-Before execution a config file has to be created in which details about the SELEX experiment have to be included.
+Before executing the workflow a config file has to be created.
+This config file stores details about the SELEX experiment and where the workflow can find the FASTQ-files.
+
+To create such a config file, you can either write it on your own, or use the **create_config.py** script, which is recommended.
+```bash
+python create_config.py
+# or
+./create_config.py
+```
+The script **create_config.py** will create a new file, ending with '.config' named after your experiment.
+So, if you experiment name is 'SELEX 24.Nov.2020', the config will be called 'SELEX24.Nov.2020.config'.
+
 Below is the command which can be used to execute the workflow.
 ```bash
 nextflow run selex-ngs-prep.nf -c YOUR_SELEX.config
 ```
-
-Output and Input directory can be changed in the config file.
 
 If you are working on a cluster you probably don't want NextFlow to place intermediate files in the working directory.
 The working directory can be changed as seen below:
@@ -108,53 +155,40 @@ The working directory can be changed as seen below:
 nextflow run selex-ngs-prep.nf -c YOUR_SELEX.config -w /scratch/xyz/work
 ```
 
-## Configuration
-selex-ngs-prep **needs** you to define a config file containing information about your experiment.
-
-For a sucessful selex-ngs-prep only a handful of settings have to be set, as seen below.
-Create a new text file (or modify one from *config/*) and save it as *YOUR_EXPERIMENT_NAME.config*.
-Make sure to choose a proper name for you config file.
-```groovy
-params {
-    fastq_pattern = "*R{1,2}_001.fastq"     // wildcard pattern to find FASTQ files
-    round_order = ["R0", "R1", "R2", "R3", "R4"]
-    
-    // Length of random region
-    random_region = 40
-    
-    // Forward and reverse primers (flanking regions)
-    primer5 = "TAGGGAAGAGAAGGACATATGAT"
-    primer3 = "TTGACTAGTACATGACCACTTGA"
-}
-```
-The config parameter 'fastq_pattern' has to be a wildcard pattern.
-In the case of "`*R{1,2}_001.fastq`" the workflow will look for forward of the pattern `'*R1_001.fastq'` and reverse reads of the pattern `'*R2_001.fastq'`.
-
 ### Default Config
-The default config-file with all options is shown here:
+The default config-file with all options is shown here.
+Please use the config creation wizard **create_config.py**, it will cover all of these options.
+
 ```groovy
-// ngs-prep.config
+// nextflow.config (default fallback config file)
 params {
+    experiment = "SELEX"                // Experiment's name
+
     input_dir = "./input_data"          // optional
     output_dir = "./output"             // optional
-    fastq_pattern = null
-    selex_rounds = ["R0", "R1", "R2", "R3", "R4"]    // optional, if null then alphabetical order is used
+    fastq_pattern = null                // e.g. '*_{fwd,rev}.fastq'
+    selex_rounds = null                 // list of selex rounds to take: ["R0", ...]
+
+    trim_delimiter = null               // delimiter to be used to trim file names
     
-    random_region = null
-    random_region_max_deviation = 3     // optional
+    random_region = null                // length of random region
+    random_region_min = null            // min length of random region
+    random_region_max = null            // max length of random region
     
-    primer5 = null
-    primer3 = null      
-    
+    primer5 = "ACGT"                    // 5'Primer aka Forward Primer
+    primer3 = "TTTT"                    // 3'Primer aka Reverse Primer
+
+    // further settings
     trim.max_error_rate = 0.2           // maximum error rate in the primers to be recognized
     filter.min_phred_quality = 30       // default average sequence read quality to include sequence
     merge.base_correction = true        // enables base correctio if paired-end reads mismatch and there are major quality differences
     merge.max_mismatches = 1            // allowed number of mismatches for merging
 }
-
-
 ```
 
 
 ## License
-    
+
+None here yet. 
+Please cite my thesis if you use this in academia.
+Please get in touch if you are a commercial user.
