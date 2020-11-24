@@ -94,8 +94,7 @@ NGS quality analysis
 ========================================================
 """
 process ngs_quality_raw {
-    publishDir "${params.output_dir}/analysis.ngs_quality.raw",
-        pattern: "*.html",
+    publishDir "${params.output_dir}/analysis.ngs_quality",
         mode: "copy"
     
     input:
@@ -103,12 +102,13 @@ process ngs_quality_raw {
         file(fastq_rev) from fastq_files_rev_sorted
     output:
         file("*.html") into ngs_quality_raw_html
-        file("*.png") into ngs_quality_raw_png
+        file("raw_plots/") into ngs_quality_raw_png
     script:
     """
         ngs_quality_report.R \
             --title '${params.experiment}: Raw Files' \
-            -o ./ngs_quality_raw.html \
+            --out_html ./ngs_quality_raw.html \
+            --out_dir ./raw_plots \
             --fwd_reads ${fastq_fwd} \
             --rev_reads ${fastq_rev} 
     """
@@ -254,20 +254,20 @@ fastq_preprocessed_ngs_analysis_sorted = fastq_preprocessed_ngs_analysis
     .collect { it -> return it.collect { it[3] } } // double collect here, single did not work
 
 process ngs_quality_analysis_preprocessed {
-    publishDir "${params.output_dir}/analysis.ngs_quality.prepped",
-        pattern: "*.html",
+    publishDir "${params.output_dir}/analysis.ngs_quality",
         mode: "copy"
     
     input:
         file(fastq_file) from fastq_preprocessed_ngs_analysis_sorted
     output:
         file("*.html") into ngs_quality_html_preprocessed
-        file("*.png") into ngs_quality_png_preprocessed
+        file("prepped_plots") into ngs_quality_png_preprocessed
     script:
     """
         ngs_quality_report.R  \
             --title '${params.experiment}: Preprocessed Files' \
-            -o ./ngs_quality_preprocessed.html \
+            --out_html ./ngs_quality_preprocessed.html \
+            --out_dir ./prepped_plots \
             --fwd_reads ${fastq_file}
     """
 }

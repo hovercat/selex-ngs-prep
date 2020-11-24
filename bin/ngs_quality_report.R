@@ -67,10 +67,12 @@ for (i in 1:length(args$fwd_reads)) {
 
 # Create a plot for every reverse read
 gg_rev <- list()
-for (i in 1:length(args$rev_reads)) {
-  rev = args$rev_reads[i]
-  gg_rev[[rev]] <- plotQualityProfile(rev)
-  ggsave(paste0(basename(rev), ".ngs_quality.png"), gg_rev[[rev]], path=args$out_dir)
+if (length(args$rev_reads) > 0) {
+  for (i in 1:length(args$rev_reads)) {
+    rev = args$rev_reads[i]
+    gg_rev[[rev]] <- plotQualityProfile(rev)
+    ggsave(paste0(basename(rev), ".ngs_quality.png"), gg_rev[[rev]], path=args$out_dir)
+  }
 }
 
 # Prepare params list for RMarkdown
