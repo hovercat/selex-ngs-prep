@@ -2,13 +2,16 @@
 title: "Nucleotide Composition"
 output: html_document
 params:
-  author: "Ulrich Aschl"
+  title: "Nucleotide Composition Analysis"
+  date: !r Sys.Date()
   gg_mean: !r -1
   gg_rounds: !r list()
   round_names: !r c()
   round_index: !r c()
 ---
-**Author**: `r params$author`
+# Overview
+**Experiment**: `r params$title`
+**Analysis Date**: `r params$date`
 
 ## Nt distribution over all SELEX rounds
 ```{r, fig.show="hold", out.width="70%", message=FALSE, warning=FALSE, echo=FALSE}

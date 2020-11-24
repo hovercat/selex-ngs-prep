@@ -10,7 +10,7 @@ args_parser = ArgumentParser(
 )
 args_parser$add_argument("--in-derep-csv", "-i", help="Input file must be csv as created by SELEXderep.", required=TRUE)
 args_parser$add_argument("--out-file", "-o", default="rpm.csv", help="Output file. Default: rpm.csv")
-#args <- args_parser$parse_args(c("-i", "output/fasta.prepped/out.csv"))
+#args <- args_parser$parse_args(c("-i", "output_EF05/selex.aptamers.csv"))
 args <- args_parser$parse_args()
 
 # Data input
@@ -26,7 +26,8 @@ df_selex_long <- df_selex %>%
 #df_selex_long <- df_selex %>% gather("round", "count", -"id", -"seq", na.rm = TRUE)
 df_selex <- NULL # clear wide format from ram
 
-df_rpm <- df_selex_long %>%
+df_selex_long_ordered <- df_selex_long[order(factor(df_selex_long$round, levels = round_names)),]
+df_rpm <- df_selex_long_ordered %>%
   group_by(round) %>% # calculate rpm, exponent_rpm and exponent
   mutate(
     rpm = (count/sum(count) * (10^6))

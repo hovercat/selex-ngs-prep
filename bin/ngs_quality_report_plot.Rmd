@@ -1,12 +1,49 @@
+---
+title: "Sequencing Quality"
+output: html_document
+params:
+  title: "EF01: Raw Reads from Illumina MiSeq"
+  date: !r Sys.Date()
+  gg_fwd_general: !r -1
+  gg_rev_general: !r -1
+  gg_fwd: !r list()
+  gg_rev: !r list()
+---
 
-### `r basename(params$fwd_reads[i])`
+# Overview
+**Experiment**: `r params$title`
+**Analysis Date**: `r params$date`
 
+## Overall NGS FASTQ Quality
 ```{r, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE, echo=FALSE}
-  setwd(params$wd)
-  fwd <- dada2::plotQualityProfile(fwd_fastq)
-  print(fwd)
-  if (!is.null(rev_fastq)) {
-    rev <- dada2::plotQualityProfile(rev_fastq)
-    print(rev)
+  plot(params$gg_fwd_general)
+  if (length(params$gg_rev_general) > 0) {
+    plot(params$gg_rev_general)
   }
 ```
+
+
+
+
+## SELEX Round FASTQ Quality
+
+Quality Plots are created using the DADA2 Pipeline's 'plotQualityProfile' function.
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+out = NULL
+for (i in 1:length(params$gg_fwd)) {
+  fwd <- params$gg_fwd[i]
+  rev <- NULL
+  if (!is.null(params$gg_rev) || length(params$gg_rev) > 0) {
+    rev <- params$gg_rev[i]
+  } else {
+    rev <- NULL
+  }
+  out <- c(out, knitr::knit_child(here::here("bin", "ngs_quality_report_plot_round.Rmd"), quiet=TRUE))
+}
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results="asis"}
+cat(paste(out, collapse = '\n'))
+```
+

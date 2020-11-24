@@ -12,7 +12,8 @@ library(ggplot2)
 library(stringr)
 
 parser <- argparse::ArgumentParser(description="")
-parser$add_argument('--author', type="character", default="")
+parser$add_argument('--title', type="character", default="")
+parser$add_argument('--date', type="character", default=paste0(Sys.Date()))
 parser$add_argument('-i', "--input", nargs='+', required=FALSE, help="realtive path to csv files with nt data")
 parser$add_argument('-o', type="character", required=FALSE, default="./nt_composition.html")
 parser$add_argument('-f', action="store_true", default=FALSE, help="Overwrite existing output file.")
@@ -83,8 +84,8 @@ ggsave("nt_distribution.png", gg_mean)
 
 # Plotting nt distribution for every single SELEX round
 gg_nt_content_rounds <- list()
-for (round_index in levels(factor(collected_csv_wide$round_index))) {
-  round_csv <- collected_csv_wide[collected_csv_wide$round_index == round_index,]
+for (round_index in levels(factor(collected_csv_long$round_index))) {
+  round_csv <- collected_csv_long[collected_csv_long$round_index == round_index,]
   round_name <- levels(factor(round_csv$round_name))
   
   gg_nt_content_round <- ggplot(round_csv, aes(x=factor(nt_position, ordered=FALSE), y=count, fill=factor(nt))) +
@@ -112,8 +113,8 @@ args_rmd = list()
 args_rmd$author = args$author
 args_rmd$gg_mean <- gg_mean
 args_rmd$gg_rounds = gg_nt_content_rounds
-args_rmd$round_names <- unique(factor(collected_csv_wide$round_name))
-args_rmd$round_index <- unique(factor(collected_csv_wide$round_index))
+args_rmd$round_names <- unique(factor(collected_csv_long$round_name))
+args_rmd$round_index <- unique(factor(collected_csv_long$round_index))
 
 # Rendering HTML
 rmarkdown::render(

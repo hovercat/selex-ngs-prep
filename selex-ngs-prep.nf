@@ -53,6 +53,18 @@ def get_round_id(String round_name) {
     else return params.round_order.indexOf(round_name);
 }
 
+"""
+========================================================
+Make output directory if it doesn't exist
+========================================================    
+"""
+dir_output = file(params.output_dir)
+if (!dir_output.exists()) {
+    if (!dir_output.mkdir()) {
+        println("Couldn't create output directory.")
+    }
+}
+
 
 """
 ========================================================
@@ -82,7 +94,7 @@ NGS quality analysis
 ========================================================
 """
 process ngs_quality_raw {
-    publishDir 'output/analysis.ngs_quality',
+    publishDir "${params.output_dir}/analysis.ngs_quality.raw",
         pattern: "*.html",
         mode: "copy"
     
@@ -91,10 +103,10 @@ process ngs_quality_raw {
         file(fastq_rev) from fastq_files_rev_sorted
     output:
         file("*.html") into ngs_quality_raw_html
+        file("*.png") into ngs_quality_raw_png
     script:
     """
-        ngs_quality_report.R --author '${params.author}' \
-            --ngs_run_date '${params.ngs_run_date}' \
+        ngs_quality_report.R \
             --title '${params.experiment}: Raw Files' \
             -o ./ngs_quality_raw.html \
             --fwd_reads ${fastq_fwd} \
@@ -168,11 +180,11 @@ process filter {
 
 process merge {
     conda 'bioconda::fastp'
-    publishDir 'output/fastq.prepped.all_lengths',
+    publishDir "${params.output_dir}/fastq.prepped.all_lengths",
         pattern: '*merge.fastq',
         saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
         mode: "copy"
-    publishDir 'output/fasta.prepped.all_lengths',
+    publishDir "${params.output_dir}/fasta.prepped.all_lengths",
         pattern: '*merge.fasta',
         saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
         mode: "copy"
@@ -202,11 +214,11 @@ process merge {
 
 
 process restrict_random_region_length {
-    publishDir 'output/fastq.prepped',
+    publishDir "${params.output_dir}/fastq.prepped",
         pattern: '*fastq',
         //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
         mode: "copy"
-    publishDir 'output/fasta.prepped',
+    publishDir "${params.output_dir}/fasta.prepped",
         pattern: '*fasta',
         //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fasta"},
         mode: "copy"
@@ -242,7 +254,7 @@ fastq_preprocessed_ngs_analysis_sorted = fastq_preprocessed_ngs_analysis
     .collect { it -> return it.collect { it[3] } } // double collect here, single did not work
 
 process ngs_quality_analysis_preprocessed {
-    publishDir 'output/analysis.ngs_quality',
+    publishDir "${params.output_dir}/analysis.ngs_quality.prepped",
         pattern: "*.html",
         mode: "copy"
     
@@ -250,10 +262,10 @@ process ngs_quality_analysis_preprocessed {
         file(fastq_file) from fastq_preprocessed_ngs_analysis_sorted
     output:
         file("*.html") into ngs_quality_html_preprocessed
+        file("*.png") into ngs_quality_png_preprocessed
     script:
     """
-        ngs_quality_report.R --author '${params.author}' \
-            --ngs_run_date '${params.ngs_run_date}' \
+        ngs_quality_report.R  \
             --title '${params.experiment}: Preprocessed Files' \
             -o ./ngs_quality_preprocessed.html \
             --fwd_reads ${fastq_file}
@@ -305,7 +317,7 @@ process preprocessings_analysis {
 
 preprocessing_analysis_csv_sorted = preprocessing_analysis_csv_lines.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process preprocessings_analysis_combine_csv {
-    publishDir 'output/analysis.preprocessing/',
+    publishDir "${params.output_dir}/analysis.preprocessing/",
         pattern: "preprocessing*",
         mode: "copy"
     
@@ -331,7 +343,7 @@ Analysing SELEX Enrichment
 
 fasta_prepped_sorted = fasta_preprocessed.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process dereplicate_rpm {
-    publishDir 'output/',
+    publishDir "${params.output_dir}/",
         pattern: '*{csv,png}',
         mode: "copy"
                 
@@ -347,7 +359,7 @@ process dereplicate_rpm {
 }
 
 process assess_selex_enrichment {
-    publishDir 'output/analysis.selex_success',
+    publishDir "${params.output_dir}/analysis.selex_success",
         pattern: '*',
         mode: "copy"
                 
@@ -372,7 +384,7 @@ Analysing Nucleotide Distribution
 ========================================================
 """
 process analyse_round_nt_distribution {
-    publishDir 'output/analysis.nt_distribution',
+    publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*.csv',
         mode: "copy"
     input:
@@ -387,7 +399,7 @@ process analyse_round_nt_distribution {
 
 fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process analyse_selex_nt_distribution {
-    publishDir 'output/analysis.nt_distribution',
+    publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*{png,html}',
         mode: "copy"
     input:
@@ -397,6 +409,6 @@ process analyse_selex_nt_distribution {
         file("*.png") into nt_distribution_round_png
     script:
     """
-        selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html --author '${params.author}'
+        selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html
     """
 }
