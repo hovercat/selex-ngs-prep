@@ -1,5 +1,6 @@
 # selex-ngs-prep
-*Selex-ngs-prep* is a NextFlow workflow made for data preparation and quality assessment of next generation sequencing (NGS) files resulting from SELEX experiments.
+*Selex-ngs-prep* is a NextFlow workflow made for data preparation and quality assessment of next generation sequencing (NGS) files resulting from SELEX 
+choosealicense.com experiments.
 
 The pipeline works with demultiplexed files in FASTQ format.
 Sequences in the FASTQ files are expected to consist of a 5'-primer, random region, and 3'-primer.
@@ -185,6 +186,17 @@ params {
     merge.max_mismatches = 1            // allowed number of mismatches for merging
 }
 ```
+
+## Software Used
+
+- Some R-Packages by Hadley Wickham: ggplot2, tidyr, dplyr, stringr
+- benjjneb's dada2
+- More R-Packages: here, BiocManager, rmarkdown, knitr, latex2exp
+- Python Packages: pandas
+- NextFlow
+- cutadapt
+- conda with bioconda (?)
+- fastp
 
 
 ## License
