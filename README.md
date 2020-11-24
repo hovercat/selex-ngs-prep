@@ -1,6 +1,5 @@
 # selex-ngs-prep
-*Selex-ngs-prep* is a NextFlow workflow made for data preparation and quality assessment of next generation sequencing (NGS) files resulting from SELEX 
-choosealicense.com experiments.
+*Selex-ngs-prep* is a NextFlow workflow made for data preparation and quality assessment of next generation sequencing (NGS) files resulting from SELEX experiments.
 
 The pipeline works with demultiplexed files in FASTQ format.
 Sequences in the FASTQ files are expected to consist of a 5'-primer, random region, and 3'-primer.
