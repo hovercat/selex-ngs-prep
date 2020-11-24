@@ -9,7 +9,7 @@ parser$add_argument('-o', type="character", help="Plot name", required=FALSE)
 parser$add_argument('-p', type="character", help="Percentage plot name ", required=FALSE)
 parser$add_argument('-f', action="store_true", help="Overwrite existing output file?")
 
-#args <- parser$parse_args(c("-i", "output/preprocessing_analysis/preprocessing_analysis_fwd.csv"))
+#args <- parser$parse_args(c("-i", "example_output/analysis.preprocessing/preprocessing_analysis.csv"))
 args <- parser$parse_args()
 
 if (is.null(args$o) || args$o == "") {
@@ -29,7 +29,7 @@ if (file.exists(args$o)) {
 
 prep <- read.table(args$i, header = TRUE, sep = '\t') %>%
   mutate(
-    `-> Passed` = restrict_size,
+    `5. Passed` = restrict_size,
     `4. Size Filter` = merge - restrict_size,
     `3. Merging Loss` = filter - merge,
     `2. Quality Filter` = trim - filter,
@@ -44,6 +44,7 @@ prep <- read.table(args$i, header = TRUE, sep = '\t') %>%
     
   )
 col_order = colnames(prep)[-1:-2]
+col_order = rev(col_order)
 prep_long <- prep %>%
   pivot_longer(c(-round_id, -round_name), names_to="Discarded", values_to="read_count")
 
@@ -58,17 +59,16 @@ gg <- ggplot(prep_long, aes(x=round_name, y=read_count)) +
   coord_flip() +
   scale_fill_viridis_d(begin=0.35, end=0.9) +
   xlab("Round Name") +
-  ylab("Filter Performance")
-
+  ylab("Preprocessing Step Loss")
 
 gg_perc <- ggplot(prep_long, aes(x=round_name, y=read_count)) +
   geom_col(position="fill", aes(fill=Discarded)) +
   coord_flip() +
   scale_fill_viridis_d(begin=0.35, end=0.9) +
   xlab("Round Name") +
-  ylab("Filter Performance Percentage") +
+  ylab("Preprocessing Step Loss") +
   scale_y_continuous(labels = scales::percent)
 
-ggsave(args$o, gg)
-ggsave(args$p, gg_perc)
+ggsave(args$o, gg, width=12)
+ggsave(args$p, gg_perc, width=12)
 
