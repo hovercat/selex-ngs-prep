@@ -4,8 +4,8 @@ output: html_document
 params:
   title: "EF01: Raw Reads from Illumina MiSeq"
   date: !r Sys.Date()
-  gg_fwd_general: !r -1
-  gg_rev_general: !r -1
+  gg_fwd_general: !r list()
+  gg_rev_general: !r list()
   gg_fwd: !r list()
   gg_rev: !r list()
 ---
