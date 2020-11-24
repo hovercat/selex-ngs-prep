@@ -69,7 +69,7 @@ It shows the how many reads were discarded in every step of the workflow for eve
 
 Here's an example plot:
 
-<img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.preprocessing/preprocessing.perc.png?raw=true" alt="Preprocessing Performance Plot" width="60%" height="60%"/>
+<img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.preprocessing/preprocessing.perc.png?raw=true" alt="Preprocessing Performance Plot" width="90%"/>
 
 ### Preprocessed FASTA/FASTQ Files
 
