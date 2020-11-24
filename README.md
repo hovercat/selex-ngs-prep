@@ -7,18 +7,18 @@ Sequences in the FASTQ files are expected to consist of a 5'-primer, random regi
 The workflow localizes and trims off flanking regions, filters the sequences by quality and merges paired-end reads.
 It also provides extensive information about the SELEX experiment's success and the quality of the NGS run.
 
-FASTA files resulting from *selex-ngs-prep* are required by other SELEX analysis pipelines we developed: Pipe1 Pipe2.
-It can be used as a standalone analysis workflow to gain first insights in the experiment's data though.
+FASTA files resulting from *selex-ngs-prep* are required by other SELEX analysis pipelines we developed, it can be used as a standalone analysis workflow to gain first insights in the experiment's data though.
 
 
 ## Prerequisites and Installation
 ### Conda Environment
 A conda-like python environment manager is required.
 The workflow was tested using conda 4.9.0, though any conda-like environment manager should work.
+
 Info on the installation of conda can be found here: [conda.io](https://docs.conda.io/)
 
-Packages can be installed into the base environment, which is activated by default.
-We suggest to create a new environment though to avoid conflicting packages.
+New packages can be installed to the base environment, which is activated by default.
+We suggest to create a new environment to avoid conflicting packages.
 #### Optional: Creating a new environment
 Create a new environment in which the required packages will be installed.
 Be sure to always activate this environment before using the workflow, as seen below.
@@ -44,9 +44,27 @@ Discarded sequences are put into *output/discarded*.
 Plots and charts concerning the success of the SELEX experiment (selex round enrichment, nucleotide distribution along aptamers, nucleotide distribution over SELEX rounds) are put into *output/selex_analysis*.
 Plots and charts concerning the quality of the next generation sequencing is put into *output/ngs_quality*. -->
 
-### Preprocessed and Discarded FASTA files
+The workflow generates a vast number of different files.
 
-### SELEX Success
+### Preprocessed FASTA/FASTQ Files
+
+The most important output files are the preprocessed (trimmed, filtered, merged) FASTA and FASTQ files, containing the aptamer random regions.
+These files should be used for further analysis.
+
+### Aptamer CSV Lists
+
+Two files called *selex.aptamers.csv* and *selex.aptamers.rpm.csv* are created.
+They contain one row for every unique random region encountered, along with read counts for every SELEX round.
+
+Values in the rpm-file (rpm is reads per million) are based on the percentage a sequences takes of a SELEX round, multiplicated by 10^6. 
+
+### SELEX Enrichment
+
+Plots and CSV files are created, in which random regions are binned logarithmically by base 2 and base 10.
+
+An example plot: ![SELEX Enrichment](readme_images/selex_success.log2.csv.png)
+
+### Nucleotide Distribution
 
 ### NGS Quality
 
@@ -59,19 +77,19 @@ By default new directories are created containing resulting files and a cache.
     .
     ├── bin/                # R and Python scripts for analysis
     ├── input_data/         # Directory used by default for input of raw FASTQ files
-    ├── examples/           # Example config files and data in FASTQ format
-    ├── output/             
-    │   ├── preprocessed_fasta/   # The main result: preprocessed FASTA files
-    │   ├── preprocessed_fastq/   # The main result: preprocessed FASTQ files
-    │   ├── discarded/      # FASTQ files with discarded sequences
-    │   ├── selex_quality/  # Plots and charts concerning success of the SELEX experiment
-    │   └── ngs_quality/    # Plots and charts concerning sequencing quality
-    ├── test/               # Automated tests
+    ├── output_YOUREXPERIMENT/             
+    │   ├── analysis.ngs_quality/       # HTML-Files and plots on sequencing quality
+    │   ├── analysis.nt_distribution/   # HTML-Files and plots on nucleotide distribution on aptamers
+    │   ├── analysis.preprocessing/     # Plots and charts on loss during preprocessing
+    │   ├── analysis.selex_success/     # Plots and charts on aptamers enrichment
+    │   ├── fastx*                      # Directories with preprocessed FASTQ/FASTA files
+    │   ├── selex.aptamers.csv          # CSV chart containing all aptamers in the experiment
+    │   └── selex.aptamers.rpm.csv      # CSV chart containing all aptamers in the experiment, counted in reads per million
     ├── work/               # cache dir containing intermediate files and temporary conda environments
     |   └── ...
     ├── selex-ngs-prep.nf   # The data preparation workflow
     ├── nextflow.config     # Fallback config file (must not be changed)
-    ├── YOUR_SELEX.config   # Place holder config file which can be changed by you
+    ├── create_config.py    # Config creation wizard
     ├── LICENSE
     └── README.md
     
