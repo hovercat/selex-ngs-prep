@@ -47,10 +47,21 @@ Plots and charts concerning the quality of the next generation sequencing is put
 
 The workflow generates a vast number of different files.
 
-### Preprocessed FASTA/FASTQ Files
 
-The most important output files are the preprocessed (trimmed, filtered, merged) FASTA and FASTQ files, containing the aptamer random regions.
-These files should be used for further analysis.
+### NGS Quality
+
+Quality plots of sequencing files are created using the plotQualityProfile function from the DADA2 Amplicon Sequencing Pipeline. <!-- TODO: Cite -->
+Plots are created for raw files, as well as the fully preprocessed files.
+
+<p float="left">
+  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/raw_plots/ngs_quality_forward.png?raw=true" width="49%" />
+  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/prepped_plots/ngs_quality_forward.png?raw=true" width="49%" />
+</p>
+
+On the left side is the quality profile plot before preprocessing. On the right side after preprocessing.
+
+These plots are also created for every single SELEX round (before and after preprocessing) and are also written as HTML files.
+
 
 ### Preprocessing Performance
 
@@ -60,6 +71,11 @@ It shows the how many reads were discarded in every step of the workflow for eve
 Here's an example plot:
 
 <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.preprocessing/preprocessing.perc.png?raw=true" alt="Preprocessing Performance Plot" width="60%" height="60%"/>
+
+### Preprocessed FASTA/FASTQ Files
+
+The most important output files are the preprocessed (trimmed, filtered, merged) FASTA and FASTQ files, containing the aptamer random regions.
+These files should be used for further analysis.
 
 ### Aptamer CSV Lists
 
@@ -92,21 +108,6 @@ Please have a look into the example_output directory if you are interested.
 </p>
 The left plot shows the nt distribution over all rounds for a SELEX experiment.
 The right plots shows the nt distribution along the random region of a specific SELEX round.
-
-### NGS Quality
-
-Quality plots of sequencing files are created using the plotQualityProfile function from the DADA2 Amplicon Sequencing Pipeline. <!-- TODO: Cite -->
-Plots are created for raw files, as well as the fully preprocessed files.
-
-<p float="left">
-  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/raw_plots/ngs_quality_forward.png?raw=true" width="49%" />
-  <img src="https://github.com/hovercat/selex-ngs-prep/blob/main/example_output/analysis.ngs_quality/prepped_plots/ngs_quality_forward.png?raw=true" width="49%" />
-</p>
-
-On the left side is the quality profile plot before preprocessing. On the right side after preprocessing.
-
-These plots are also created for every single SELEX round (before and after preprocessing) and are also written as HTML files.
-
 
 
 ## Usage
