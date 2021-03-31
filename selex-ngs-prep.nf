@@ -32,7 +32,7 @@ def remove_all_extensions(String s) {
 }
 
 def trim_fn(String s) {    
-    if (params.trim_filenames) {
+    if (params.trim_filenames && s.indexOf(params.trim_delimiter) > 0) {
         return s.substring(0, s.indexOf(params.trim_delimiter));
     } else {
         return s;
@@ -73,8 +73,9 @@ Read FASTQ-files from specified input directory and order by round_order (if pre
 """
 fastq_files = Channel.fromFilePairs(params.input_dir + "/" + params.fastq_pattern, checkIfExists:true, type: "file")
 fastq_files
-    .map { it -> [get_round_id(trim_fn(it[0])), trim_fn(it[0]), it].flatten() }
+    .map { it -> [get_round_id(trim_fn(it[0])), trim_fn(it[0]), it[1][0], it[1][1]	] }
     .filter { filter_selex_rounds(it[1]) }
+    .view()	
     .into { fastq_files_ngs_quality; fastq_files_preprocess }
     
 
@@ -124,10 +125,10 @@ process trim {
     conda 'bioconda::cutadapt'
     
     input:
-        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from fastq_files_preprocess
+        tuple val(round_id), val(round_name), file(fastq_fwd), file(fastq_rev) from fastq_files_preprocess
     output:
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.simpleName}.trim.fastq"), file("${fastq_rev.simpleName}.trim.fastq") into trim_keep        
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.fastq"), file("${fastq_fwd.baseName}.trim.fastq") into preprocessing_analysis_trim
+        tuple val(round_id), val(round_name), file("${fastq_fwd.simpleName}.trim.fastq"), file("${fastq_rev.simpleName}.trim.fastq") into trim_keep        
+        tuple val(round_id), val(round_name), file("${fastq_fwd.baseName}.fastq"), file("${fastq_fwd.baseName}.trim.fastq") into preprocessing_analysis_trim
         
     script:
     """
@@ -164,9 +165,9 @@ process filter {
     conda 'bioconda::fastp'
     
     input:
-        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from trim_keep
+        tuple val(round_id), val(round_name), file(fastq_fwd), file(fastq_rev) from trim_keep
     output:
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.filter.fastq"), file("${fastq_rev.baseName}.filter.fastq") into filter_keep
+        tuple val(round_id), val(round_name), file("${fastq_fwd.baseName}.filter.fastq"), file("${fastq_rev.baseName}.filter.fastq") into filter_keep
         tuple val(round_id), file("${fastq_fwd.baseName}.filter.fastq") into preprocessing_analysis_filter
     script:
     """
@@ -190,10 +191,10 @@ process merge {
         mode: "copy"
     
     input:
-        tuple val(round_id), val(round_name), val(identifier), file(fastq_fwd), file(fastq_rev) from filter_keep
+        tuple val(round_id), val(round_name), file(fastq_fwd), file(fastq_rev) from filter_keep
     output:
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.merge.fastq") into fastp_keep
-        tuple val(round_id), val(round_name), val(identifier), file("${fastq_fwd.baseName}.merge.fasta") into fasta_keep
+        tuple val(round_id), val(round_name), file("${fastq_fwd.baseName}.merge.fastq") into fastp_keep
+        tuple val(round_id), val(round_name), file("${fastq_fwd.baseName}.merge.fasta") into fasta_keep
         tuple val(round_id), file("${fastq_fwd.baseName}.merge.fastq") into preprocessing_analysis_merge
     script:
     """
@@ -214,6 +215,7 @@ process merge {
 
 
 process restrict_random_region_length {
+   conda 'pandas'
     publishDir "${params.output_dir}/fastq.prepped",
         pattern: '*fastq',
         //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
@@ -224,12 +226,12 @@ process restrict_random_region_length {
         mode: "copy"
         
     input:
-        tuple val(round_id), val(round_name), val(identifier), file(fastq_preprocessed) from fastp_keep
+        tuple val(round_id), val(round_name), file(fastq_preprocessed) from fastp_keep
     output:
-        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fastq") into fastq_preprocessed
-        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fasta") into fasta_preprocessed
-        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fasta") into fasta_preprocessed_nt_distribution
-        tuple val(round_id), val(round_name), val(identifier), file("${round_name}.fastq") into fastq_preprocessed_ngs_analysis
+        tuple val(round_id), val(round_name), file("${round_name}.fastq") into fastq_preprocessed
+        tuple val(round_id), val(round_name), file("${round_name}.fasta") into fasta_preprocessed
+        tuple val(round_id), val(round_name), file("${round_name}.fasta") into fasta_preprocessed_nt_distribution
+        tuple val(round_id), val(round_name), file("${round_name}.fastq") into fastq_preprocessed_ngs_analysis
         
         tuple val(round_id), file("${round_name}.fastq") into preprocessing_analysis_restricted_length
     script:
@@ -285,7 +287,7 @@ preprocessing_analysis_trim
 
 process preprocessings_analysis {
     input:
-        tuple val(round_id), val(round_name), val(identifier), file("raw.fastq"), file("trim.fastq"), file("filter.fastq"), file("merge.fastq"), file("restricted_length.fastq") from preprocessing_analysis
+        tuple val(round_id), val(round_name), file("raw.fastq"), file("trim.fastq"), file("filter.fastq"), file("merge.fastq"), file("restricted_length.fastq") from preprocessing_analysis
     output:
         tuple val(round_id), file("${round_id}.csv") into preprocessing_analysis_csv_lines
     script:
@@ -343,6 +345,7 @@ Analysing SELEX Enrichment
 
 fasta_prepped_sorted = fasta_preprocessed.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process dereplicate_rpm {
+    conda 'pandas'
     publishDir "${params.output_dir}/",
         pattern: '*{csv,png}',
         mode: "copy"
@@ -384,11 +387,12 @@ Analysing Nucleotide Distribution
 ========================================================
 """
 process analyse_round_nt_distribution {
+    conda 'pandas'
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*.csv',
         mode: "copy"
     input:
-        tuple val(round_id), val(round_name), val(identifier), file(fasta) from fasta_preprocessed_nt_distribution
+        tuple val(round_id), val(round_name), file(fasta) from fasta_preprocessed_nt_distribution
     output:
         tuple val(round_id), file("${round_name}.nt_distribution.csv") into nt_distribution_round_csv
     script:

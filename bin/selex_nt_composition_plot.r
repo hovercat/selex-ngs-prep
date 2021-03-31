@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-packages <- c("argparse", "here", "rmarkdown", "knitr")
+packages <- c("argparse", "here", "rmarkdown", "knitr", "dplyr", "tidyr", "stringr", "ggplot2")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(packages, rownames(installed.packages())))  
+  install.packages(setdiff(packages, rownames(installed.packages())), repos="https://cran.wu.ac.at/")  
 }
 
 library(argparse)
