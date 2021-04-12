@@ -15,7 +15,5 @@ dependencies:
   - r-ggplot2
   - r-viridis
   - r-latex2exp
+  - r-xlsx
   - pandas
-  - fastp
-  - cutadapt
-  - r-biocmanager

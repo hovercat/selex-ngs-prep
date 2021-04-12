@@ -79,7 +79,7 @@ fastq_files
     .into { fastq_files_ngs_quality; fastq_files_preprocess }
     
 
-(fastq_files_fwd, fastq_files_rev) = fastq_files_ngs_quality.separate(2) { it -> [[it[0], it[3]], [it[0], it[4]]] }
+(fastq_files_fwd, fastq_files_rev) = fastq_files_ngs_quality.separate(2) { it -> [[it[0], it[2]], [it[0], it[3]]] }
 fastq_files_fwd_sorted = fastq_files_fwd
     .toSortedList( { a, b -> a[0] <=> b[0] } )
     .collect { it -> return it.collect { it[1] } } // double collect here, single did not work
@@ -95,6 +95,7 @@ NGS quality analysis
 ========================================================
 """
 process ngs_quality_raw {
+    echo true
     //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-biocmanager conda-forge:r-rmarkdown conda-forge:r-knitr conda-forge:r-ggplot2'
 
     publishDir "${params.output_dir}/analysis.ngs_quality",
@@ -255,9 +256,10 @@ NGS Quality Analysis of Preprocessed Files
 
 fastq_preprocessed_ngs_analysis_sorted = fastq_preprocessed_ngs_analysis
     .toSortedList( { a, b -> a[0] <=> b[0] } )
-    .collect { it -> return it.collect { it[3] } } // double collect here, single did not work
+    .collect { it -> return it.collect { it[2] } } // double collect here, single did not work
 
 process ngs_quality_analysis_preprocessed {
+    echo true
     //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-biocmanager conda-forge:r-rmarkdown conda-forge:r-knitr conda-forge:r-ggplot2'
 
 
@@ -343,83 +345,5 @@ process preprocessings_analysis_combine_csv {
     """
 }
 
-"""
-========================================================
-Analysing SELEX Enrichment
-========================================================
-"""
-
-fasta_prepped_sorted = fasta_preprocessed.toSortedList( { a -> a[0] } ).transpose().last().collect()
-process dereplicate_rpm {
-    //conda 'conda-forge:pandas conda-forge:r-argparse conda-forge:r-dplyr conda-forge:r-tidyr'
-    publishDir "${params.output_dir}/",
-        pattern: '*{csv,png}',
-        mode: "copy"
-                
-    input:
-        file(fasta) from fasta_prepped_sorted
-    output:
-        tuple file("selex.dereplicated.fasta"), file("selex.aptamers.csv"), file("selex.aptamers.rpm.csv") into selex_dereplicated
-        
-    """
-        selex_dereplicate_fasta.py -o selex.dereplicated.fasta -c selex.aptamers.csv ${fasta}
-        selex_rpm.r -i selex.aptamers.csv -o selex.aptamers.rpm.csv
-    """
-}
-
-process assess_selex_enrichment {
-    publishDir "${params.output_dir}/analysis.selex_success",
-        pattern: '*',
-        mode: "copy"
-                
-    input:
-    tuple file("selex.dereplicated.fasta"), file("selex.aptamers.csv"), file("selex.aptamers.rpm.csv") from selex_dereplicated
-    output:
-        file("selex_success*.csv") into selex_enrichment
-        file("selex_success*.png") into selex_enrichment_png
-    """        
-        # Analyse Log Duplicates
-        selex_analyse_log_duplicates.r -i selex.aptamers.csv --log-base 2 --out-unique-csv selex_success.unique.log2.csv --out-csv selex_success.log2.csv
-        selex_analyse_log_duplicates.r -i selex.aptamers.csv --log-base 10 --out-unique-csv selex_success.unique.log10.csv --out-csv selex_success.log10.csv
-        selex_analyse_log_duplicates.r -i selex.aptamers.rpm.csv --log-base 2 --out-unique-csv selex_success.unique.log2.rpm.csv --out-csv selex_success.log2.rpm.csv
-        selex_analyse_log_duplicates.r -i selex.aptamers.rpm.csv --log-base 10 --out-unique-csv selex_success.unique.log10.rpm.csv --out-csv selex_success.log10.rpm.csv
-    """
-}
 
 
-"""
-========================================================
-Analysing Nucleotide Distribution
-========================================================
-"""
-process analyse_round_nt_distribution {
-    //conda 'conda-forge:pandas'
-    publishDir "${params.output_dir}/analysis.nt_distribution",
-        pattern: '*.csv',
-        mode: "copy"
-    input:
-        tuple val(round_id), val(round_name), file(fasta) from fasta_preprocessed_nt_distribution
-    output:
-        tuple val(round_id), file("${round_name}.nt_distribution.csv") into nt_distribution_round_csv
-    script:
-    """
-        selex_nt_composition.py -i $fasta -o ${round_name}.nt_distribution.csv --DNA -n ${params.random_region}
-    """
-}
-
-fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
-process analyse_selex_nt_distribution {
-    //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-stringr conda-forge:r-knitr conda-forge:r-markdown conda-forge:r-dplyr conda-forge:r-tidyr conda-forge:r-ggplot2'
-    publishDir "${params.output_dir}/analysis.nt_distribution",
-        pattern: '*{png,html}',
-        mode: "copy"
-    input:
-        file(round_csv) from fasta_preprocessed_nt_distribution_sorted
-    output:
-        file("nucleotide_composition.html") into nt_distribution_round_html
-        file("*.png") into nt_distribution_round_png
-    script:
-    """
-        selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html
-    """
-}

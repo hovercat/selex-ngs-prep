@@ -34,7 +34,7 @@ out = NULL
 for (i in 1:length(params$gg_fwd)) {
   fwd <- params$gg_fwd[i]
   rev <- NULL
-  if (!is.null(params$gg_rev) || length(params$gg_rev) > 0) {
+  if (!is.null(params$gg_rev) && length(params$gg_rev) > 0) {
     rev <- params$gg_rev[i]
   } else {
     rev <- NULL
