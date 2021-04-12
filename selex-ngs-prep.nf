@@ -95,6 +95,8 @@ NGS quality analysis
 ========================================================
 """
 process ngs_quality_raw {
+    //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-biocmanager conda-forge:r-rmarkdown conda-forge:r-knitr conda-forge:r-ggplot2'
+
     publishDir "${params.output_dir}/analysis.ngs_quality",
         mode: "copy"
     
@@ -122,7 +124,7 @@ Data preparation
 ========================================================
 """
 process trim {
-    conda 'bioconda::cutadapt'
+    //conda 'bioconda::cutadapt'
     
     input:
         tuple val(round_id), val(round_name), file(fastq_fwd), file(fastq_rev) from fastq_files_preprocess
@@ -162,7 +164,7 @@ process trim {
 
 
 process filter {
-    conda 'bioconda::fastp'
+    //conda 'bioconda::fastp'
     
     input:
         tuple val(round_id), val(round_name), file(fastq_fwd), file(fastq_rev) from trim_keep
@@ -180,7 +182,7 @@ process filter {
 }
 
 process merge {
-    conda 'bioconda::fastp'
+    //conda 'bioconda::fastp'
     publishDir "${params.output_dir}/fastq.prepped.all_lengths",
         pattern: '*merge.fastq',
         saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
@@ -215,7 +217,7 @@ process merge {
 
 
 process restrict_random_region_length {
-   conda 'pandas'
+    //conda 'conda-forge:pandas'
     publishDir "${params.output_dir}/fastq.prepped",
         pattern: '*fastq',
         //saveAs: { filename -> "${trim_fn(remove_all_extensions(filename))}.fastq"},
@@ -256,6 +258,9 @@ fastq_preprocessed_ngs_analysis_sorted = fastq_preprocessed_ngs_analysis
     .collect { it -> return it.collect { it[3] } } // double collect here, single did not work
 
 process ngs_quality_analysis_preprocessed {
+    //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-biocmanager conda-forge:r-rmarkdown conda-forge:r-knitr conda-forge:r-ggplot2'
+
+
     publishDir "${params.output_dir}/analysis.ngs_quality",
         mode: "copy"
     
@@ -319,6 +324,7 @@ process preprocessings_analysis {
 
 preprocessing_analysis_csv_sorted = preprocessing_analysis_csv_lines.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process preprocessings_analysis_combine_csv {
+    //conda 'conda-forge:r-argparse conda-forge:r-dplyr conda-forge:r-tidyr conda-forge:r-ggplot2 conda-forge:r-viridis'
     publishDir "${params.output_dir}/analysis.preprocessing/",
         pattern: "preprocessing*",
         mode: "copy"
@@ -345,7 +351,7 @@ Analysing SELEX Enrichment
 
 fasta_prepped_sorted = fasta_preprocessed.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process dereplicate_rpm {
-    conda 'pandas'
+    //conda 'conda-forge:pandas conda-forge:r-argparse conda-forge:r-dplyr conda-forge:r-tidyr'
     publishDir "${params.output_dir}/",
         pattern: '*{csv,png}',
         mode: "copy"
@@ -387,7 +393,7 @@ Analysing Nucleotide Distribution
 ========================================================
 """
 process analyse_round_nt_distribution {
-    conda 'pandas'
+    //conda 'conda-forge:pandas'
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*.csv',
         mode: "copy"
@@ -403,6 +409,7 @@ process analyse_round_nt_distribution {
 
 fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
 process analyse_selex_nt_distribution {
+    //conda 'conda-forge:r-argparse conda-forge:r-here conda-forge:r-stringr conda-forge:r-knitr conda-forge:r-markdown conda-forge:r-dplyr conda-forge:r-tidyr conda-forge:r-ggplot2'
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*{png,html}',
         mode: "copy"

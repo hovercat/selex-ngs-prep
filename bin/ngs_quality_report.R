@@ -1,10 +1,11 @@
 #!/usr/bin/env Rscript
-packages <- c("argparse", "here", "BiocManager", "rmarkdown", "knitr", "ggplot2")
-if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(packages, rownames(installed.packages())), repos="https://cran.wu.ac.at/")  
-}
+#packages <- c("argparse", "here", "BiocManager", "rmarkdown", "knitr", "ggplot2")
+#if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+#  install.packages(setdiff(packages, rownames(installed.packages())), repos="https://cran.wu.ac.at/")  
+#}
 
 if(!"dada2" %in% rownames(installed.packages())) {
+  library(BiocManager)
   BiocManager::install("dada2")
 }
 
