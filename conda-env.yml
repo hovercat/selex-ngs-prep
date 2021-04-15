@@ -16,4 +16,7 @@ dependencies:
   - r-viridis
   - r-latex2exp
   - r-xlsx
+  - r-biocmanager
+  - cutadapt
+  - fastp
   - pandas
