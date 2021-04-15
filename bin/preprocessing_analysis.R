@@ -1,4 +1,7 @@
 #!/usr/bin/env Rscript
+#packages <- c("argparse", "dplyr", "tidyr", "ggplot2")
+#install.packages(setdiff(packages, rownames(installed.packages())), repos="https://cran.wu.ac.at/")
+
 library(argparse)
 library(tidyr)
 library(dplyr)

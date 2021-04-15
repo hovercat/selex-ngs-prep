@@ -1,0 +1,22 @@
+name: conda-env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.0.3
+  - r-argparse
+  - r-dplyr
+  - r-tidyr
+  - r-here
+  - r-stringr
+  - r-knitr
+  - r-rmarkdown
+  - r-ggplot2
+  - r-viridis
+  - r-latex2exp
+  - r-xlsx
+  - r-biocmanager
+  - cutadapt
+  - fastp
+  - pandas

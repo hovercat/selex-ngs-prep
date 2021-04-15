@@ -1,10 +1,11 @@
 #!/usr/bin/env Rscript
-packages <- c("argparse", "here", "BiocManager", "rmarkdown", "knitr", "ggplot2")
-if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(packages, rownames(installed.packages())))  
-}
+#packages <- c("argparse", "here", "BiocManager", "rmarkdown", "knitr", "ggplot2")
+#if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+#  install.packages(setdiff(packages, rownames(installed.packages())), repos="https://cran.wu.ac.at/")  
+#}
 
 if(!"dada2" %in% rownames(installed.packages())) {
+  library(BiocManager)
   BiocManager::install("dada2")
 }
 
@@ -49,7 +50,11 @@ if (file.exists(args$out_dir)) {
 dir.create(args$out_dir)
 
 # Create forwad and reverse plot for all files provided together
-gg_fwd_general <- plotQualityProfile(args$fwd_reads, aggregate = TRUE)
+print(length(args$fwd_reads))
+print(args$fwd_reads)
+print("aaaa2")
+gg_fwd_general <- dada2::plotQualityProfile(args$fwd_reads, aggregate = TRUE)
+print("hi")
 gg_rev_general <- NULL
 ggsave("ngs_quality_forward.png", path=args$out_dir, plot=gg_fwd_general)
 if (!is.null(args$rev_reads) && length(args$rev_reads) > 0) {
