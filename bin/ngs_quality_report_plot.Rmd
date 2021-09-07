@@ -2,7 +2,7 @@
 title: "Sequencing Quality"
 output: html_document
 params:
-  title: "EF01: Raw Reads from Illumina MiSeq"
+  title: "Raw Reads from Illumina MiSeq"
   date: !r Sys.Date()
   gg_fwd_general: !r list()
   gg_rev_general: !r list()

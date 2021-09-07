@@ -17,6 +17,7 @@ dependencies:
   - r-latex2exp
   - r-xlsx
   - r-biocmanager
+  - bioconductor-dada2
   - cutadapt
   - fastp
   - pandas
